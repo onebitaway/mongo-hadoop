@@ -1,5 +1,6 @@
 from bson import InvalidBSON, BSON
 from bson.binary import Binary
+from bson.codec_options import CodecOptions
 
 import sys
 import struct
@@ -15,17 +16,18 @@ class BSONInput(object):
         self.fh = fh
         self.unicode_errors = unicode_errors
         self.eof = False
+        self.codec_options = CodecOptions(tz_aware=True)
 
     def _read(self):
         try:
             size_bits = self.fh.read(4)
-            size = struct.unpack("<i", size_bits)[0] - 4 # BSON size byte includes itself 
+            size = struct.unpack("<i", size_bits)[0] - 4 # BSON size byte includes itself
             data = size_bits + self.fh.read(size)
             if len(data) != size + 4:
                 raise struct.error("Unable to cleanly read expected BSON Chunk; EOF, underful buffer or invalid object size.")
             if data[size + 4 - 1] != "\x00":
                 raise InvalidBSON("Bad EOO in BSON Data")
-            doc = BSON(data).decode(tz_aware=True)
+            doc = BSON(data).decode(self.codec_options)
             return doc
         except struct.error, e:
             #print >> sys.stderr, "Parsing Length record failed: %s" % e
